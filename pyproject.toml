@@ -1,0 +1,22 @@
+[project]
+name = "terminal-channel-viewer"
+version = "0.1.0"
+description = "Terminal UI for viewing Doover DDA channel data"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "textual>=8.0",
+    "pydoover @ git+https://github.com/getdoover/pydoover.git@doover-2",
+    "grpcio>=1.71.0",
+    "protobuf>=6.30.0",
+]
+
+[project.scripts]
+channel-viewer = "terminal_channel_viewer.cli:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
