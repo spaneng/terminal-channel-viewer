@@ -237,11 +237,14 @@ class ChannelViewerApp(App):
             return
 
         try:
-            row_key, _ = focused.coordinate_to_cell_key(focused.cursor_coordinate)
+            # Get the value from the last column (value column) of the cursor row
+            from textual.coordinate import Coordinate
+            row = focused.cursor_coordinate.row
+            col = len(focused.columns) - 1
+            value = str(focused.get_cell_at(Coordinate(row, col)))
         except Exception:
             return
 
-        value = str(focused.get_cell(row_key, "value"))
         self.copy_to_clipboard(value)
         self.notify(f"Copied: {value[:60]}", timeout=2)
 
