@@ -18,6 +18,7 @@ class ChannelViewerApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("s", "toggle_star", "Star/Unstar"),
+        ("c", "copy_value", "Copy"),
     ]
 
     def __init__(self, uri: str, key_filter: str | None = None):
@@ -227,6 +228,22 @@ class ChannelViewerApp(App):
 
             if channel != self.active_channel:
                 self._ensure_channel_subscription(channel)
+
+    # -- Copy to clipboard ------------------------------------------------------
+
+    def action_copy_value(self) -> None:
+        focused = self.focused
+        if not isinstance(focused, DataTable) or not focused.rows:
+            return
+
+        try:
+            row_key, _ = focused.coordinate_to_cell_key(focused.cursor_coordinate)
+        except Exception:
+            return
+
+        value = str(focused.get_cell(row_key, "value"))
+        self.copy_to_clipboard(value)
+        self.notify(f"Copied: {value[:60]}", timeout=2)
 
     # -- Quit -------------------------------------------------------------------
 
