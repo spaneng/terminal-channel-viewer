@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 from textual import work
 from textual.app import App, ComposeResult
@@ -245,7 +246,7 @@ class ChannelViewerApp(App):
         except Exception:
             return
 
-        self.copy_to_clipboard(value)
+        subprocess.run(["pbcopy"], input=value.encode(), check=True)
         self.notify(f"Copied: {value[:60]}", timeout=2)
 
     # -- Quit -------------------------------------------------------------------
