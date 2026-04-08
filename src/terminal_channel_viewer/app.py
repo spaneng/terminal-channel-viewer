@@ -4,13 +4,28 @@ import subprocess
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import DataTable, Footer, Header, ListView, ListItem, Label
+from textual.screen import ModalScreen
+from textual.widgets import DataTable, Footer, Header, ListView, ListItem, Label, Static
 
 from pydoover.docker import DeviceAgentInterface
 from pydoover.models import AggregateUpdateEvent, EventSubscription
 from pydoover.models.generated.device_agent import device_agent_pb2
 
 from .styles import CSS
+
+
+class ValueModal(ModalScreen):
+    BINDINGS = [("escape", "dismiss", "Close"), ("q", "dismiss", "Close")]
+
+    def __init__(self, title: str, body: str):
+        super().__init__()
+        self._title = title
+        self._body = body
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label(self._title, classes="modal-title")
+            yield Static(self._body, id="modal-body")
 
 
 class ChannelViewerApp(App):
@@ -20,6 +35,7 @@ class ChannelViewerApp(App):
         ("q", "quit", "Quit"),
         ("s", "toggle_star", "Star/Unstar"),
         ("c", "copy_value", "Copy"),
+        ("e", "expand_value", "Expand"),
     ]
 
     def __init__(self, uri: str, key_filter: str | None = None):
@@ -161,9 +177,13 @@ class ChannelViewerApp(App):
     def _format_val(val) -> str:
         if isinstance(val, str):
             return val
-        if isinstance(val, (dict, list)):
-            return json.dumps(val, indent=2, default=str)
         return json.dumps(val, default=str)
+
+    @staticmethod
+    def _format_val_pretty(val) -> str:
+        if isinstance(val, str):
+            return val
+        return json.dumps(val, indent=2, default=str)
 
     # -- Table updates ----------------------------------------------------------
 
@@ -233,6 +253,32 @@ class ChannelViewerApp(App):
 
             if channel != self.active_channel:
                 self._ensure_channel_subscription(channel)
+
+    # -- Expand value -----------------------------------------------------------
+
+    def action_expand_value(self) -> None:
+        focused = self.focused
+        if not isinstance(focused, DataTable) or not focused.rows:
+            return
+
+        try:
+            from textual.coordinate import Coordinate
+            row = focused.cursor_coordinate.row
+            key_col = 0 if focused is self.query_one("#channel-table", DataTable) else 1
+            val_col = len(focused.columns) - 1
+            key_name = str(focused.get_cell_at(Coordinate(row, key_col)))
+        except Exception:
+            return
+
+        # Look up the raw value to pretty print it
+        items = self._flatten_data(self._channel_data.get(self.active_channel, {}))
+        raw = items.get(key_name)
+        if raw is not None:
+            pretty = self._format_val_pretty(raw)
+        else:
+            pretty = str(focused.get_cell_at(Coordinate(row, val_col)))
+
+        self.push_screen(ValueModal(key_name, pretty))
 
     # -- Copy to clipboard ------------------------------------------------------
 

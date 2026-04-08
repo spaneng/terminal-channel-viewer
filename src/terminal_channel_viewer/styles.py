@@ -41,4 +41,27 @@ CSS = """
     height: auto;
     max-height: 100%;
 }
+
+ValueModal {
+    align: center middle;
+}
+
+ValueModal > Vertical {
+    width: 80%;
+    height: 80%;
+    border: thick $accent;
+    background: $surface;
+    padding: 1 2;
+}
+
+ValueModal .modal-title {
+    text-style: bold;
+    padding: 0 0 1 0;
+    color: $text;
+}
+
+ValueModal #modal-body {
+    height: 1fr;
+    overflow-y: auto;
+}
 """
