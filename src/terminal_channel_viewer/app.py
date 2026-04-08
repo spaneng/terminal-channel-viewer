@@ -159,7 +159,11 @@ class ChannelViewerApp(App):
 
     @staticmethod
     def _format_val(val) -> str:
-        return json.dumps(val, default=str) if not isinstance(val, str) else val
+        if isinstance(val, str):
+            return val
+        if isinstance(val, (dict, list)):
+            return json.dumps(val, indent=2, default=str)
+        return json.dumps(val, default=str)
 
     # -- Table updates ----------------------------------------------------------
 
