@@ -27,6 +27,9 @@ class ValueModal(ModalScreen):
             yield Label(self._title, classes="modal-title")
             yield Static(self._body, id="modal-body")
 
+    def update_body(self, body: str) -> None:
+        self.query_one("#modal-body", Static).update(body)
+
 
 class ChannelViewerApp(App):
     TITLE = "DDA Channel Viewer"
@@ -50,6 +53,7 @@ class ChannelViewerApp(App):
         )
         self.starred: dict[tuple[str, str], str] = {}
         self._channel_data: dict[str, dict] = {}
+        self._expanded_key: tuple[str, str] | None = None  # (channel, key)
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -116,6 +120,7 @@ class ChannelViewerApp(App):
                 if channel_name == self.active_channel:
                     self._update_channel_table(event.aggregate.data)
                 self._update_starred_from_channel(channel_name, event.aggregate.data)
+                self._refresh_modal(channel_name, event.aggregate.data)
 
         self.device_agent.add_event_callback(
             channel_name,
@@ -128,6 +133,7 @@ class ChannelViewerApp(App):
         self._channel_data[channel_name] = aggregate.data
         self._update_channel_table(aggregate.data)
         self._update_starred_from_channel(channel_name, aggregate.data)
+        self._refresh_modal(channel_name, aggregate.data)
 
     @work(exit_on_error=False)
     async def _ensure_channel_subscription(self, channel_name: str) -> None:
@@ -138,6 +144,7 @@ class ChannelViewerApp(App):
             if isinstance(event, AggregateUpdateEvent):
                 self._channel_data[channel_name] = event.aggregate.data
                 self._update_starred_from_channel(channel_name, event.aggregate.data)
+                self._refresh_modal(channel_name, event.aggregate.data)
 
         self.device_agent.add_event_callback(
             channel_name,
@@ -149,6 +156,7 @@ class ChannelViewerApp(App):
         aggregate = await self.device_agent.fetch_channel_aggregate(channel_name)
         self._channel_data[channel_name] = aggregate.data
         self._update_starred_from_channel(channel_name, aggregate.data)
+        self._refresh_modal(channel_name, aggregate.data)
 
     # -- Data helpers -----------------------------------------------------------
 
@@ -184,6 +192,20 @@ class ChannelViewerApp(App):
         if isinstance(val, str):
             return val
         return json.dumps(val, indent=2, default=str)
+
+    def _refresh_modal(self, channel_name: str, data: dict) -> None:
+        if self._expanded_key is None or self._expanded_key[0] != channel_name:
+            return
+        items = self._flatten_data(data)
+        raw = items.get(self._expanded_key[1])
+        if raw is None:
+            return
+        try:
+            modal = self.screen
+            if isinstance(modal, ValueModal):
+                modal.update_body(self._format_val_pretty(raw))
+        except Exception:
+            pass
 
     # -- Table updates ----------------------------------------------------------
 
@@ -278,7 +300,11 @@ class ChannelViewerApp(App):
         else:
             pretty = str(focused.get_cell_at(Coordinate(row, val_col)))
 
-        self.push_screen(ValueModal(key_name, pretty))
+        self._expanded_key = (self.active_channel, key_name)
+        self.push_screen(ValueModal(key_name, pretty), callback=self._on_modal_dismiss)
+
+    def _on_modal_dismiss(self, _result=None) -> None:
+        self._expanded_key = None
 
     # -- Copy to clipboard ------------------------------------------------------
 
